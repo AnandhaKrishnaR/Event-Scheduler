@@ -14,6 +14,54 @@ def get_venues(request):
     return Response(serializer.data)
 
 
+@api_view(['POST'])
+def create_venue(request):
+    data = request.data
+    venue = Venue.objects.create(
+        venue_name=data['venue_name'],
+        capacity=int(data['capacity']),
+        location=data['location'],
+        facilities=data['facilities']
+    )
+    serializer = VenueSerializer(venue)
+    return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+
+@api_view(['PUT'])
+def update_venue(request, venue_id):
+    try:
+        venue = Venue.objects.get(venue_id=venue_id)
+    except Venue.DoesNotExist:
+        return Response(
+            {'error': 'Venue not found.'},
+            status=status.HTTP_404_NOT_FOUND
+        )
+    data = request.data
+    venue.venue_name = data.get('venue_name', venue.venue_name)
+    venue.capacity = int(data.get('capacity', venue.capacity))
+    venue.location = data.get('location', venue.location)
+    venue.facilities = data.get('facilities', venue.facilities)
+    venue.save()
+    serializer = VenueSerializer(venue)
+    return Response(serializer.data)
+
+
+@api_view(['DELETE'])
+def delete_venue(request, venue_id):
+    try:
+        venue = Venue.objects.get(venue_id=venue_id)
+    except Venue.DoesNotExist:
+        return Response(
+            {'error': 'Venue not found.'},
+            status=status.HTTP_404_NOT_FOUND
+        )
+    venue.delete()
+    return Response(
+        {'message': 'Venue deleted successfully.'},
+        status=status.HTTP_200_OK
+    )
+
+
 @api_view(['GET'])
 def get_schedules(request):
     schedules = Schedule.objects.select_related('event', 'venue').all()
@@ -46,7 +94,7 @@ def submit_event(request):
     duration = int(data['duration'])
 
     # Convert month name to number
-    month_name = data['preferred_month']  # e.g. "April"
+    month_name = data['preferred_month']
     month_number = list(calendar.month_name).index(month_name.capitalize())
 
     if month_number == 0:

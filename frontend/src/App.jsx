@@ -1,22 +1,23 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom'
-import Navbar from './components/Navbar'
-import EventForm from './pages/EventForm'
-import ScheduleList from './pages/ScheduleList'
-import VenueList from './pages/VenueList'
+import { Routes, Route } from 'react-router-dom'
+import Layout from './layout/Layout'
+import HomePage from './pages/HomePage'
+import EventsPage from './pages/EventsPage'
+import SchedulePage from './pages/SchedulePage'
+import AdminPage from './pages/AdminPage'
+import LoginPage from './pages/LoginPage'
+import VenuePage from './pages/VenuePage'
 
-function App() {
+export default function App() {
   return (
-    <BrowserRouter>
-      <Navbar />
-      <div className="container mt-4">
-        <Routes>
-          <Route path="/" element={<EventForm />} />
-          <Route path="/schedules" element={<ScheduleList />} />
-          <Route path="/venues" element={<VenueList />} />
-        </Routes>
-      </div>
-    </BrowserRouter>
+    <Routes>
+      <Route path="/" element={<Layout />}>
+        <Route index element={<HomePage />} />
+        <Route path="events" element={<EventsPage />} />
+        <Route path="schedule" element={<SchedulePage />} />
+        <Route path="admin" element={<AdminPage />} />
+        <Route path="login" element={<LoginPage />} />
+        <Route path="venues" element={<VenuePage />} />
+      </Route>
+    </Routes>
   )
 }
-
-export default App

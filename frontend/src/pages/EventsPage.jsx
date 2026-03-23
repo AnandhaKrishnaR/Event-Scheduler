@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { Link } from 'react-router-dom'
 import axios from 'axios'
 import { Calendar, Clock, MapPin, Search, Plus, X } from 'lucide-react'
 
@@ -48,7 +49,6 @@ export default function EventsPage() {
       const response = await axios.post('http://127.0.0.1:8000/api/events/', formData)
       setResult(response.data)
       setShowForm(false)
-      // Refresh events list after new event is added
       fetchSchedules()
       setFormData({
         event_name: '', organizer: '', department: '',
@@ -206,7 +206,9 @@ export default function EventsPage() {
         ) : filteredSchedules.length === 0 ? (
           <div className="text-center py-5">
             <p className="text-secondary">
-              {searchQuery ? 'No events found matching your search.' : 'No events scheduled yet. Be the first to submit one!'}
+              {searchQuery
+                ? 'No events found matching your search.'
+                : 'No events scheduled yet. Be the first to submit one!'}
             </p>
           </div>
         ) : (
@@ -221,7 +223,7 @@ export default function EventsPage() {
                     Scheduled
                   </span>
                   <h5 className="fw-semibold mb-3">{s.event_name}</h5>
-                  <div className="d-flex flex-column gap-2 text-secondary small mt-auto">
+                  <div className="d-flex flex-column gap-2 text-secondary small">
                     <div className="d-flex align-items-center gap-2">
                       <MapPin size={14} />
                       <span>{s.venue_name}</span>
@@ -235,6 +237,13 @@ export default function EventsPage() {
                       <span>{s.start_time} - {s.end_time}</span>
                     </div>
                   </div>
+                  {/* ✅ View Details Button */}
+                  <Link
+                    to={`/event/${s.schedule_id}`}
+                    className="btn btn-outline-dark btn-sm mt-3"
+                  >
+                    View Details
+                  </Link>
                 </div>
               </div>
             ))}

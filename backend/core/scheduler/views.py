@@ -77,7 +77,75 @@ def get_schedules(request):
         })
     return Response(data)
 
+@api_view(['GET'])
+def get_event_detail(request, schedule_id):
+    try:
+        s = Schedule.objects.select_related('event', 'venue', 'event__user').get(schedule_id=schedule_id)
+        data = {
+            'schedule_id': s.schedule_id,
+            'event_name': s.event.event_name,
+            'organizer': s.event.user.name,
+            'department': s.event.user.department,
+            'expected_participants': s.event.expected_participants,
+            'required_facility': s.event.required_facility,
+            'duration': s.event.duration,
+            'venue_name': s.venue.venue_name,
+            'location': s.venue.location,
+            'capacity': s.venue.capacity,
+            'facilities': s.venue.facilities,
+            'date': s.date,
+            'start_time': str(s.start_time),
+            'end_time': str(s.end_time),
+        }
+        return Response(data)
+    except Schedule.DoesNotExist:
+        return Response(
+            {'error': 'Event not found.'},
+            status=status.HTTP_404_NOT_FOUND
+        )
+@api_view(['DELETE'])
+def delete_schedule(request, schedule_id):
+    try:
+        schedule = Schedule.objects.get(schedule_id=schedule_id)
+        # Also delete the associated event
+        event = schedule.event
+        schedule.delete()
+        event.delete()
+        return Response(
+            {'message': 'Event deleted successfully.'},
+            status=status.HTTP_200_OK
+        )
+    except Schedule.DoesNotExist:
+        return Response(
+            {'error': 'Event not found.'},
+            status=status.HTTP_404_NOT_FOUND
+        )
+@api_view(['PUT'])
+def update_schedule(request, schedule_id):
+    try:
+        schedule = Schedule.objects.select_related('event', 'venue').get(schedule_id=schedule_id)
+        data = request.data
 
+        # Update event details
+        schedule.event.event_name = data.get('event_name', schedule.event.event_name)
+        schedule.event.expected_participants = int(data.get('expected_participants', schedule.event.expected_participants))
+        schedule.event.required_facility = data.get('required_facility', schedule.event.required_facility)
+        schedule.event.duration = int(data.get('duration', schedule.event.duration))
+        schedule.event.save()
+
+        return Response({
+            'message': 'Event updated successfully.',
+            'schedule_id': schedule.schedule_id,
+            'event_name': schedule.event.event_name,
+            'expected_participants': schedule.event.expected_participants,
+            'required_facility': schedule.event.required_facility,
+            'duration': schedule.event.duration,
+        })
+    except Schedule.DoesNotExist:
+        return Response(
+            {'error': 'Event not found.'},
+            status=status.HTTP_404_NOT_FOUND
+        )
 @api_view(['POST'])
 def submit_event(request):
     data = request.data

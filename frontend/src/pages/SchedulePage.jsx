@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { Link } from 'react-router-dom'
 import axios from 'axios'
 import { ChevronLeft, ChevronRight, List, Grid, Calendar, Clock, MapPin } from 'lucide-react'
 
@@ -41,7 +42,7 @@ export default function SchedulePage() {
     return schedules.filter(s => s.date === dateStr)
   }
 
-  // ✅ Filter schedules by current month and year
+  // Filter schedules by current month and year
   const currentMonthSchedules = schedules.filter(s => {
     const eventDate = new Date(s.date)
     return eventDate.getFullYear() === year && eventDate.getMonth() === month
@@ -143,18 +144,23 @@ export default function SchedulePage() {
                           {events.length > 0 && (
                             <div className="mt-1">
                               {events.map((e) => (
-                                <div key={e.schedule_id} title={e.event_name}>
+                                // ✅ Clickable event name in calendar
+                                <Link
+                                  key={e.schedule_id}
+                                  to={`/event/${e.schedule_id}`}
+                                  className="text-dark text-decoration-none d-block"
+                                  title={e.event_name}
+                                >
                                   <span className="calendar-event-dot"></span>
                                   <span
                                     style={{ fontSize: '0.65rem' }}
                                     className="text-truncate d-inline-block"
-                                    title={e.event_name}
                                   >
                                     {e.event_name.length > 10
                                       ? e.event_name.substring(0, 10) + '...'
                                       : e.event_name}
                                   </span>
-                                </div>
+                                </Link>
                               ))}
                             </div>
                           )}
@@ -164,7 +170,7 @@ export default function SchedulePage() {
                   </div>
                 </div>
               ) : (
-                // ✅ List View — filtered by current month
+                // List View — filtered by current month
                 <div className="card-body">
                   {currentMonthSchedules.length === 0 ? (
                     <div className="text-center text-secondary py-4">
@@ -181,7 +187,13 @@ export default function SchedulePage() {
                             <span className="badge bg-secondary badge-category me-2">
                               Scheduled
                             </span>
-                            <span className="fw-semibold">{s.event_name}</span>
+                            {/* ✅ Clickable event name in list view */}
+                            <Link
+                              to={`/event/${s.schedule_id}`}
+                              className="fw-semibold text-dark text-decoration-none"
+                            >
+                              {s.event_name}
+                            </Link>
                           </div>
                           <div className="d-flex gap-4 text-secondary small">
                             <div className="d-flex align-items-center gap-1">
@@ -196,6 +208,13 @@ export default function SchedulePage() {
                               <Clock size={14} />
                               <span>{s.start_time} - {s.end_time}</span>
                             </div>
+                            {/* ✅ View Details button */}
+                            <Link
+                              to={`/event/${s.schedule_id}`}
+                              className="btn btn-outline-dark btn-sm"
+                            >
+                              View Details
+                            </Link>
                           </div>
                         </div>
                       ))}

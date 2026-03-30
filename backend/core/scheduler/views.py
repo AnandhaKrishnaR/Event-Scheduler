@@ -1,7 +1,7 @@
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework import status
-from datetime import datetime, timedelta, date
+from datetime import datetime, timedelta, date, time
 import calendar
 from .models import User, Venue, Event, Schedule
 from .serializers import VenueSerializer, ScheduleSerializer, EventSerializer
@@ -144,17 +144,40 @@ def delete_venue(request, venue_id):
 
 @api_view(['GET'])
 def get_schedules(request):
-    schedules = Schedule.objects.select_related('event', 'venue').all()
-    data = []
+    schedules = Schedule.objects.select_related('event', 'venue').order_by('date', 'start_time')
+    events_map = {}
     for s in schedules:
+        eid = s.event.event_id
+        if eid not in events_map:
+            events_map[eid] = {
+                'schedule_id': s.schedule_id,
+                'event_name': s.event.event_name,
+                'venue_name': s.venue.venue_name,
+                'status': s.event.status,
+                'start_date': s.date,
+                'end_date': s.date,
+                'start_time': s.start_time,
+                'end_time': s.end_time,
+            }
+        else:
+            events_map[eid]['end_date'] = s.date
+            events_map[eid]['end_time'] = s.end_time
+
+    data = []
+    for eid, ev in events_map.items():
+        if ev['start_date'] == ev['end_date']:
+            date_str = str(ev['start_date'])
+        else:
+            date_str = f"{ev['start_date']} to {ev['end_date']}"
+            
         data.append({
-            'schedule_id': s.schedule_id,
-            'event_name': s.event.event_name,
-            'venue_name': s.venue.venue_name,
-            'date': s.date,
-            'start_time': s.start_time,
-            'end_time': s.end_time,
-            'status': s.event.status,
+            'schedule_id': ev['schedule_id'],
+            'event_name': ev['event_name'],
+            'venue_name': ev['venue_name'],
+            'date': date_str,
+            'start_time': str(ev['start_time']),
+            'end_time': str(ev['end_time']),
+            'status': ev['status'],
         })
     return Response(data)
 
@@ -162,8 +185,18 @@ def get_schedules(request):
 def get_event_detail(request, schedule_id):
     try:
         s = Schedule.objects.select_related('event', 'venue', 'event__user').get(schedule_id=schedule_id)
+        
+        all_schedules = Schedule.objects.filter(event=s.event).order_by('date', 'start_time')
+        first_s = all_schedules.first()
+        last_s = all_schedules.last()
+        
+        if first_s.date == last_s.date:
+            date_str = str(first_s.date)
+        else:
+            date_str = f"{first_s.date} to {last_s.date}"
+            
         data = {
-            'schedule_id': s.schedule_id,
+            'schedule_id': first_s.schedule_id,
             'event_name': s.event.event_name,
             'organizer': s.event.user.name,
             'department': s.event.user.department,
@@ -174,9 +207,10 @@ def get_event_detail(request, schedule_id):
             'location': s.venue.location,
             'capacity': s.venue.capacity,
             'facilities': s.venue.facilities,
-            'date': s.date,
-            'start_time': str(s.start_time),
-            'end_time': str(s.end_time),
+            'date': date_str,
+            'start_time': str(first_s.start_time),
+            'end_time': str(last_s.end_time),
+            'preferred_time': str(s.event.preferred_time) if s.event.preferred_time else None,
             'status': s.event.status,
         }
         return Response(data)
@@ -247,6 +281,7 @@ def submit_event(request):
         required_facility=data['required_facility'],
         duration=int(data['duration']),
         preferred_month=data.get('preferred_month', ''),
+        preferred_time=data.get('preferred_time', None) or None,
         user=user,
         status='pending'
     )
@@ -273,6 +308,7 @@ def get_pending_events(request):
             'required_facility': e.required_facility,
             'duration': e.duration,
             'preferred_month': e.preferred_month,
+            'preferred_time': str(e.preferred_time) if e.preferred_time else None,
             'status': e.status,
         })
     return Response(data)
@@ -296,43 +332,106 @@ def approve_event(request, event_id):
             status=status.HTTP_400_BAD_REQUEST
         )
 
+    current_dt = datetime.now().replace(second=0, microsecond=0)
     month_name = event.preferred_month or ''
     month_number = list(calendar.month_name).index(month_name.capitalize()) if month_name else 0
     if month_number == 0:
-        month_number = date.today().month
+        month_number = current_dt.month
 
-    preferred_year = date.today().year
-    total_days = calendar.monthrange(preferred_year, month_number)[1]
+    preferred_year = current_dt.year
+    if month_number < current_dt.month:
+        preferred_year += 1
+
     assigned = None
+    
+    minimum_notice_days = 2
+    earliest_possible_date = current_dt.date() + timedelta(days=minimum_notice_days)
+    first_day_of_preferred_month = date(preferred_year, month_number, 1)
 
-    for day in range(1, total_days + 1):
-        check_date = date(preferred_year, month_number, day)
-        if check_date < date.today():
+    # Issue 2: Start searching from max(earliest_possible_date, first_day_of_preferred_month)
+    start_search_date = max(earliest_possible_date, first_day_of_preferred_month)
+
+    # Allow the algorithm to continue searching across days up to 60 days into the future
+    # This automatically spills over to the next month if the preferred month cannot satisfy constraints.
+    for day_offset in range(60):
+        check_date = start_search_date + timedelta(days=day_offset)
+
+        working_day_start_dt = datetime.combine(check_date, datetime.strptime("09:00", "%H:%M").time())
+        working_day_end_dt = datetime.combine(check_date, datetime.strptime("18:00", "%H:%M").time())
+
+        # Problem 1 & 3: Ensure start time is max(current_time, working_day_start)
+        if check_date == current_dt.date():
+            current_day_start_dt = max(current_dt, working_day_start_dt)
+        else:
+            current_day_start_dt = working_day_start_dt
+
+        # If the event is 9 hours or less, it must finish within today's working hours.
+        if event.duration <= 9 and (current_day_start_dt + timedelta(hours=event.duration) > working_day_end_dt):
             continue
 
         for venue in suitable_venues:
-            for hour in range(9, 18 - event.duration + 1):
-                start_time = datetime.strptime(f"{hour}:00", "%H:%M").time()
-                end_time = datetime.strptime(f"{hour + event.duration}:00", "%H:%M").time()
+            if event.preferred_time:
+                exact_start_dt = datetime.combine(check_date, event.preferred_time)
+                if check_date == current_dt.date() and exact_start_dt < current_dt:
+                    continue
+                if event.duration <= 9 and (exact_start_dt + timedelta(hours=event.duration) > working_day_end_dt):
+                    continue
+                proposed_start_dt = exact_start_dt
+                search_cutoff_dt = exact_start_dt
+            else:
+                proposed_start_dt = current_day_start_dt
+                if event.duration <= 9:
+                    search_cutoff_dt = working_day_end_dt - timedelta(hours=event.duration)
+                else:
+                    search_cutoff_dt = working_day_end_dt
+                
+            while proposed_start_dt <= search_cutoff_dt:
+                proposed_end_dt = proposed_start_dt + timedelta(hours=event.duration)
 
-                conflict = Schedule.objects.filter(
-                    venue=venue,
-                    date=check_date,
-                    start_time__lt=end_time,
-                    end_time__gt=start_time
-                ).exists()
+                conflict = False
+                chunk_start_dt = proposed_start_dt
+                
+                while chunk_start_dt < proposed_end_dt:
+                    chunk_date = chunk_start_dt.date()
+                    chunk_day_end_dt = datetime.combine(chunk_date, time(23, 59, 59))
+                    chunk_end_dt = min(proposed_end_dt, chunk_day_end_dt)
+                    
+                    if Schedule.objects.filter(
+                        venue=venue,
+                        date=chunk_date,
+                        start_time__lt=chunk_end_dt.time(),
+                        end_time__gt=chunk_start_dt.time()
+                    ).exists():
+                        conflict = True
+                        break
+                    
+                    chunk_start_dt = datetime.combine(chunk_date + timedelta(days=1), time(0, 0))
 
                 if not conflict:
                     event.status = 'approved'
                     event.save()
 
-                    schedule = Schedule.objects.create(
-                        event=event,
-                        venue=venue,
-                        date=check_date,
-                        start_time=start_time,
-                        end_time=end_time
-                    )
+                    chunk_start_dt = proposed_start_dt
+                    first_schedule = None
+                    last_schedule = None
+                    
+                    while chunk_start_dt < proposed_end_dt:
+                        chunk_date = chunk_start_dt.date()
+                        chunk_day_end_dt = datetime.combine(chunk_date, time(23, 59, 59))
+                        chunk_end_dt = min(proposed_end_dt, chunk_day_end_dt)
+                        
+                        schedule = Schedule.objects.create(
+                            event=event,
+                            venue=venue,
+                            date=chunk_date,
+                            start_time=chunk_start_dt.time(),
+                            end_time=chunk_end_dt.time()
+                        )
+                        if not first_schedule:
+                            first_schedule = schedule
+                        last_schedule = schedule
+                            
+                        chunk_start_dt = datetime.combine(chunk_date + timedelta(days=1), time(0, 0))
 
                     assigned = {
                         'message': 'Event approved and venue assigned!',
@@ -340,13 +439,16 @@ def approve_event(request, event_id):
                         'venue': venue.venue_name,
                         'location': venue.location,
                         'capacity': venue.capacity,
-                        'date': str(check_date),
-                        'start_time': str(start_time),
-                        'end_time': str(end_time),
+                        'date': str(proposed_start_dt.date()),
+                        'start_time': str(proposed_start_dt.time()),
+                        'end_time': str(last_schedule.end_time),
                         'status': event.status,
-                        'schedule_id': schedule.schedule_id,
+                        'schedule_id': first_schedule.schedule_id,
                     }
                     break
+                
+                proposed_start_dt += timedelta(hours=1)
+                
             if assigned:
                 break
         if assigned:
@@ -375,6 +477,7 @@ def get_events(request):
             'required_facility': e.required_facility,
             'duration': e.duration,
             'preferred_month': e.preferred_month,
+            'preferred_time': str(e.preferred_time) if e.preferred_time else None,
             'status': e.status,
         })
     return Response(data)
@@ -557,19 +660,41 @@ def register_user(request):
 def get_user_events(request, user_id):
     schedules = Schedule.objects.select_related(
         'event', 'venue'
-    ).filter(event__user__user_id=user_id)
+    ).filter(event__user__user_id=user_id).order_by('date', 'start_time')
+
+    events_map = {}
+    for s in schedules:
+        eid = s.event.event_id
+        if eid not in events_map:
+            events_map[eid] = {
+                'schedule_id': s.schedule_id,
+                'event_name': s.event.event_name,
+                'venue_name': s.venue.venue_name,
+                'status': s.event.status,
+                'start_date': s.date,
+                'end_date': s.date,
+                'start_time': s.start_time,
+                'end_time': s.end_time,
+            }
+        else:
+            events_map[eid]['end_date'] = s.date
+            events_map[eid]['end_time'] = s.end_time
 
     data = []
-
-    for s in schedules:
+    for eid, ev in events_map.items():
+        if ev['start_date'] == ev['end_date']:
+            date_str = str(ev['start_date'])
+        else:
+            date_str = f"{ev['start_date']} to {ev['end_date']}"
+            
         data.append({
-            'schedule_id': s.schedule_id,
-            'event_name': s.event.event_name,
-            'venue_name': s.venue.venue_name,
-            'date': str(s.date),
-            'start_time': str(s.start_time),
-            'end_time': str(s.end_time),
-            'status': s.event.status,
+            'schedule_id': ev['schedule_id'],
+            'event_name': ev['event_name'],
+            'venue_name': ev['venue_name'],
+            'date': date_str,
+            'start_time': str(ev['start_time']),
+            'end_time': str(ev['end_time']),
+            'status': ev['status'],
         })
 
     pending_events = Event.objects.filter(

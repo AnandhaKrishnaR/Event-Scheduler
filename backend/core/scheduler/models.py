@@ -49,6 +49,7 @@ class Event(models.Model):
     expected_participants = models.IntegerField()
     required_facility = models.CharField(max_length=100)
     duration = models.IntegerField()
+    preferred_time = models.TimeField(null=True, blank=True)
     preferred_month = models.CharField(max_length=20, default='')
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     status = models.CharField(

@@ -21,7 +21,8 @@ export default function CreateEvent() {
     expected_participants: '',
     required_facility: '',
     duration: '',
-    preferred_month: ''
+    preferred_month: '',
+    preferred_time: ''
   })
 
   useEffect(() => {
@@ -138,7 +139,7 @@ export default function CreateEvent() {
                     <input type="number" className="form-control"
                       value={formData.duration}
                       onChange={(e) => setFormData({ ...formData, duration: e.target.value })}
-                      required min="1" max="8" />
+                      required min="1" />
                   </div>
                   <div className="col-md-4">
                     <label className="form-label small fw-medium">Preferred Month</label>
@@ -149,6 +150,13 @@ export default function CreateEvent() {
                       <option value="">-- Select Month --</option>
                       {months.map(m => <option key={m} value={m}>{m}</option>)}
                     </select>
+                  </div>
+                  <div className="col-md-4">
+                    <label className="form-label small fw-medium">Preferred Start Time (Optional)</label>
+                    <input type="time" className="form-control"
+                      value={formData.preferred_time}
+                      onChange={(e) => setFormData({ ...formData, preferred_time: e.target.value })}
+                    />
                   </div>
                   <div className="col-12">
                     <button type="submit" className="btn btn-dark" disabled={submitting}>

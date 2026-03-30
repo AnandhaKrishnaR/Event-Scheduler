@@ -165,6 +165,9 @@ export default function EventApproval() {
                           <div><span className="badge bg-dark">{evt.required_facility}</span></div>
                           <div><Clock size={14} className="me-1" />Duration: {evt.duration} hour(s)</div>
                           <div><Calendar size={14} className="me-1" />Preferred month: {evt.preferred_month || 'Any'}</div>
+                          {evt.preferred_time && (
+                            <div><Clock size={14} className="me-1" />Preferred time: {evt.preferred_time}</div>
+                          )}
                         </div>
                       </div>
 

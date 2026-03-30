@@ -17,6 +17,7 @@ export default function EditEvent() {
     expected_participants: '',
     required_facility: '',
     duration: '',
+    preferred_time: '',
   })
 
   useEffect(() => {
@@ -32,6 +33,7 @@ export default function EditEvent() {
         expected_participants: e.expected_participants,
         required_facility: e.required_facility,
         duration: e.duration,
+        preferred_time: e.preferred_time || '',
       })
     } catch (err) {
       setError('Event not found.')
@@ -138,7 +140,16 @@ export default function EditEvent() {
                         onChange={(e) => setFormData({ ...formData, duration: e.target.value })}
                         required
                         min="1"
-                        max="8"
+                      />
+                    </div>
+                    
+                    <div className="col-md-6">
+                      <label className="form-label small fw-medium">Preferred Start Time (Optional)</label>
+                      <input
+                        type="time"
+                        className="form-control"
+                        value={formData.preferred_time}
+                        onChange={(e) => setFormData({ ...formData, preferred_time: e.target.value })}
                       />
                     </div>
 

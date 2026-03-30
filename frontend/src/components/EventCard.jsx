@@ -15,6 +15,9 @@ const EventCard = ({ event }) => {
             <p className="mb-2"><strong>Participants:</strong> {event.expected_participants}</p>
             <p className="mb-2"><strong>Facility:</strong> {event.required_facility}</p>
             <p className="mb-0"><strong>Duration:</strong> {event.duration} hours</p>
+            {event.preferred_time && (
+              <p className="mb-0 text-warning mt-2"><strong>Pref. Time:</strong> {event.preferred_time}</p>
+            )}
           </div>
         </div>
       </div>

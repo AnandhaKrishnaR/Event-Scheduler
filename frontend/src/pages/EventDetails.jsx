@@ -148,6 +148,18 @@ export default function EventDetails() {
                       </div>
                     </div>
 
+                    {event.preferred_time && (
+                      <div className="col-md-6">
+                        <div className="d-flex align-items-center gap-2 text-secondary small mb-1">
+                          <Clock size={14} />
+                          <span className="text-mono">Preferred Start Time</span>
+                        </div>
+                        <div className="fw-medium text-warning">
+                          {event.preferred_time}
+                        </div>
+                      </div>
+                    )}
+
                   </div>
                 </div>
 

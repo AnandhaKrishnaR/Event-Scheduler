@@ -17,7 +17,7 @@ const ScheduleTable = ({ schedules }) => {
             </thead>
             <tbody>
               {schedules.map(schedule => (
-                <tr key={schedule.id}>
+                <tr key={schedule.schedule_id}>
                   <td className="fw-semibold">{schedule.event_name}</td>
                   <td>{schedule.venue_name}</td>
                   <td>{schedule.date}</td>

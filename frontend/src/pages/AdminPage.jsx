@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import axios from 'axios'
-import { Calendar, Users, CheckCircle, Clock, MapPin } from 'lucide-react'
+import { Calendar, Users, CheckCircle, Clock, MapPin, AlertTriangle } from 'lucide-react'
 
 export default function AdminPage() {
   const [schedules, setSchedules] = useState([])
   const [venues, setVenues] = useState([])
+  const [pendingCount, setPendingCount] = useState(0)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -14,12 +15,14 @@ export default function AdminPage() {
 
   const fetchData = async () => {
     try {
-      const [schedulesRes, venuesRes] = await Promise.all([
+      const [schedulesRes, venuesRes, pendingRes] = await Promise.all([
         axios.get('http://127.0.0.1:8000/api/schedules/'),
-        axios.get('http://127.0.0.1:8000/api/venues/')
+        axios.get('http://127.0.0.1:8000/api/venues/'),
+        axios.get('http://127.0.0.1:8000/api/schedules/pending/')
       ])
       setSchedules(schedulesRes.data)
       setVenues(venuesRes.data)
+      setPendingCount(pendingRes.data.length)
     } catch (error) {
       console.error('Error fetching data:', error)
     } finally {
@@ -149,6 +152,29 @@ export default function AdminPage() {
                     <span className="fw-medium">Schedule Event</span>
                   </div>
                   <div className="text-secondary small mt-1">Create a new event</div>
+                </Link>
+              </div>
+              <div className="col-md-6">
+                <Link to="/admin/approval" className="card p-3 text-dark text-decoration-none d-block position-relative">
+                  <div className="d-flex align-items-center gap-2">
+                    <CheckCircle size={18} />
+                    <span className="fw-medium">Event Approval</span>
+                  </div>
+                  <div className="text-secondary small mt-1">Review and approve event requests</div>
+                  {pendingCount > 0 && (
+                    <span className="badge bg-warning text-dark position-absolute" style={{ top: '12px', right: '12px' }}>
+                      {pendingCount} Pending
+                    </span>
+                  )}
+                </Link>
+              </div>
+              <div className="col-md-6">
+                <Link to="/admin/override" className="card p-3 text-dark text-decoration-none d-block">
+                  <div className="d-flex align-items-center gap-2">
+                    <AlertTriangle size={18} />
+                    <span className="fw-medium">Conflict Override</span>
+                  </div>
+                  <div className="text-secondary small mt-1">Manually resolve scheduling conflicts</div>
                 </Link>
               </div>
             </div>

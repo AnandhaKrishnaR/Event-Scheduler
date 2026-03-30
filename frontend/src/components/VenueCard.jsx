@@ -1,3 +1,5 @@
+import { Pencil, Trash2 } from 'lucide-react'
+
 const VenueCard = ({ venue, onEdit, onDelete }) => {
   return (
     <div className="card shadow h-100">
@@ -11,7 +13,7 @@ const VenueCard = ({ venue, onEdit, onDelete }) => {
               className="btn btn-sm btn-outline-primary me-2"
               title="Edit"
             >
-              <i className="bi bi-pencil"></i>
+              <Pencil size={16} />
             </button>
           )}
 
@@ -21,7 +23,7 @@ const VenueCard = ({ venue, onEdit, onDelete }) => {
               className="btn btn-sm btn-outline-danger"
               title="Delete"
             >
-              <i className="bi bi-trash"></i>
+              <Trash2 size={16} />
             </button>
           )}
         </div>

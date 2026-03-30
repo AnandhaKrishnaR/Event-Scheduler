@@ -1,18 +1,13 @@
 import { useState, useEffect } from 'react'
+import { Link } from 'react-router-dom'
 import axios from 'axios'
-import { MapPin, Users, Wifi, Plus, X, Pencil, Trash2 } from 'lucide-react'
+import { MapPin, Users, Wifi, Plus } from 'lucide-react'
+import { useAuth } from '../context/AuthContext'
 
 export default function VenuePage() {
+  const { user } = useAuth()
   const [venues, setVenues] = useState([])
   const [loading, setLoading] = useState(true)
-  const [showForm, setShowForm] = useState(false)
-  const [editingVenue, setEditingVenue] = useState(null)
-  const [formData, setFormData] = useState({
-    venue_name: '',
-    capacity: '',
-    location: '',
-    facilities: ''
-  })
 
   useEffect(() => {
     fetchVenues()
@@ -29,47 +24,6 @@ export default function VenuePage() {
     }
   }
 
-  const handleSubmit = async (e) => {
-    e.preventDefault()
-    try {
-      if (editingVenue) {
-        // ✅ Fixed URL
-        await axios.put(`http://127.0.0.1:8000/api/venues/${editingVenue.venue_id}/update/`, formData)
-      } else {
-        await axios.post('http://127.0.0.1:8000/api/venues/create/', formData)
-      }
-      fetchVenues()
-      setShowForm(false)
-      setEditingVenue(null)
-      setFormData({ venue_name: '', capacity: '', location: '', facilities: '' })
-    } catch (error) {
-      console.error('Error saving venue:', error)
-    }
-  }
-
-  const handleEdit = (venue) => {
-    setEditingVenue(venue)
-    setFormData({
-      venue_name: venue.venue_name,
-      capacity: venue.capacity,
-      location: venue.location,
-      facilities: venue.facilities
-    })
-    setShowForm(true)
-  }
-
-  const handleDelete = async (venueId) => {
-    if (window.confirm('Are you sure you want to delete this venue?')) {
-      try {
-        // ✅ Fixed URL
-        await axios.delete(`http://127.0.0.1:8000/api/venues/${venueId}/delete/`)
-        fetchVenues()
-      } catch (error) {
-        console.error('Error deleting venue:', error)
-      }
-    }
-  }
-
   return (
     <div className="py-5">
       <div className="container">
@@ -80,87 +34,16 @@ export default function VenuePage() {
             <p className="text-mono text-secondary mb-1">Facilities</p>
             <h1 className="fw-bold">Venue Management</h1>
           </div>
-          <button
-            className="btn btn-dark d-flex align-items-center gap-2"
-            onClick={() => {
-              setShowForm(!showForm)
-              setEditingVenue(null)
-              setFormData({ venue_name: '', capacity: '', location: '', facilities: '' })
-            }}
-          >
-            {showForm ? <X size={18} /> : <Plus size={18} />}
-            {showForm ? 'Close' : 'Add Venue'}
-          </button>
+          {user?.role === 'admin' && (
+            <Link
+              to="/admin/venues"
+              className="btn btn-dark d-flex align-items-center gap-2"
+            >
+              <Plus size={18} />
+              Add Venue
+            </Link>
+          )}
         </div>
-
-        {/* Add / Edit Form */}
-        {showForm && (
-          <div className="card p-4 mb-4">
-            <h5 className="fw-semibold mb-4">
-              {editingVenue ? 'Edit Venue' : 'Add New Venue'}
-            </h5>
-            <form onSubmit={handleSubmit}>
-              <div className="row g-3">
-                <div className="col-md-6">
-                  <label className="form-label small fw-medium">Venue Name</label>
-                  <input
-                    type="text"
-                    className="form-control"
-                    value={formData.venue_name}
-                    onChange={(e) => setFormData({ ...formData, venue_name: e.target.value })}
-                    required
-                  />
-                </div>
-                <div className="col-md-6">
-                  <label className="form-label small fw-medium">Capacity</label>
-                  <input
-                    type="number"
-                    className="form-control"
-                    value={formData.capacity}
-                    onChange={(e) => setFormData({ ...formData, capacity: e.target.value })}
-                    required
-                  />
-                </div>
-                <div className="col-md-6">
-                  <label className="form-label small fw-medium">Location</label>
-                  <input
-                    type="text"
-                    className="form-control"
-                    value={formData.location}
-                    onChange={(e) => setFormData({ ...formData, location: e.target.value })}
-                    required
-                  />
-                </div>
-                <div className="col-md-6">
-                  <label className="form-label small fw-medium">Facilities</label>
-                  <input
-                    type="text"
-                    className="form-control"
-                    value={formData.facilities}
-                    onChange={(e) => setFormData({ ...formData, facilities: e.target.value })}
-                    placeholder="e.g., projector,mic,whiteboard"
-                    required
-                  />
-                </div>
-                <div className="col-12 d-flex gap-2">
-                  <button type="submit" className="btn btn-dark">
-                    {editingVenue ? 'Update Venue' : 'Add Venue'}
-                  </button>
-                  <button
-                    type="button"
-                    className="btn btn-outline-dark"
-                    onClick={() => {
-                      setShowForm(false)
-                      setEditingVenue(null)
-                    }}
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </div>
-            </form>
-          </div>
-        )}
 
         {/* Venues Grid */}
         {loading ? (
@@ -180,22 +63,6 @@ export default function VenuePage() {
                   {/* Card Header */}
                   <div className="d-flex justify-content-between align-items-start mb-3">
                     <h5 className="fw-semibold mb-0">🏢 {venue.venue_name}</h5>
-                    <div className="d-flex gap-2">
-                      <button
-                        className="btn btn-sm btn-outline-dark"
-                        onClick={() => handleEdit(venue)}
-                        title="Edit"
-                      >
-                        <Pencil size={14} />
-                      </button>
-                      <button
-                        className="btn btn-sm btn-outline-danger"
-                        onClick={() => handleDelete(venue.venue_id)}
-                        title="Delete"
-                      >
-                        <Trash2 size={14} />
-                      </button>
-                    </div>
                   </div>
 
                   {/* Card Details */}
